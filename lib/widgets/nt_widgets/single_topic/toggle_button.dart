@@ -5,6 +5,58 @@ import 'package:provider/provider.dart';
 
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
+class ToggleButtonModel extends SingleTopicNTWidgetModel with NTWritableModel {
+  @override
+  String type = ToggleButton.widgetType;
+
+  ToggleButtonModel({
+    required super.ntConnection,
+    required super.preferences,
+    required super.topic,
+    super.dataType,
+    super.period,
+    super.ntStructMeta,
+  }) : super();
+
+  ToggleButtonModel.fromJson({
+    required super.ntConnection,
+    required super.preferences,
+    required Map<String, dynamic> jsonData,
+  }) : super.fromJson(jsonData: jsonData) {
+    restoreWrittenValue(jsonData);
+  }
+
+  void publishValue(bool value) {
+    if (ntStructMeta != null) {
+      return;
+    }
+
+    bool alreadyPublished =
+        ntTopic != null && ntConnection.isTopicPublished(ntTopic!);
+
+    createTopicIfNull();
+
+    if (ntTopic == null) {
+      return;
+    }
+
+    if (!alreadyPublished) {
+      ntConnection.publishTopic(ntTopic!);
+    }
+
+    ntConnection.updateDataFromTopic(ntTopic!, value);
+    setLastWrittenValue(value);
+  }
+
+  @override
+  void publishLastWrittenValue() {
+    Object? value = lastWrittenValue;
+    if (value is bool) {
+      publishValue(value);
+    }
+  }
+}
+
 class ToggleButton extends NTWidget {
   static const String widgetType = 'Toggle Button';
 
@@ -12,7 +64,7 @@ class ToggleButton extends NTWidget {
 
   @override
   Widget build(BuildContext context) {
-    SingleTopicNTWidgetModel model = cast(context.watch<NTWidgetModel>());
+    ToggleButtonModel model = cast(context.watch<NTWidgetModel>());
 
     return ValueListenableBuilder(
       valueListenable: model.subscription!,
@@ -29,23 +81,7 @@ class ToggleButton extends NTWidget {
 
         return GestureDetector(
           onTapUp: (_) {
-            if (model.ntStructMeta != null) return;
-
-            bool publishTopic =
-                model.ntTopic == null ||
-                !model.ntConnection.isTopicPublished(model.ntTopic);
-
-            model.createTopicIfNull();
-
-            if (model.ntTopic == null) {
-              return;
-            }
-
-            if (publishTopic) {
-              model.ntConnection.publishTopic(model.ntTopic!);
-            }
-
-            model.ntConnection.updateDataFromTopic(model.ntTopic!, !value);
+            model.publishValue(!value);
           },
           child: Padding(
             padding: EdgeInsets.symmetric(

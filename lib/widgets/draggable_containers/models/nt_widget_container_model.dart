@@ -358,7 +358,9 @@ class NTWidgetContainerModel extends WidgetContainerModel {
       switch (childModel) {
         SingleTopicNTWidgetModel(ntStructMeta: var ntStructMeta) =>
           ntStructMeta,
-        MultiTopicNTWidgetModel() => null,
+        // Covers MultiTopicNTWidgetModel and any writable mixin subtypes; only
+        // single-topic models carry struct metadata.
+        _ => null,
       },
       type,
       childModel.topic,

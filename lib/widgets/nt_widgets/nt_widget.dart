@@ -365,6 +365,79 @@ class MultiTopicNTWidgetModel extends NTWidgetModel {
   void softDispose({bool deleting = false}) {}
 }
 
+/// Marks a widget model as writable, meaning the user can manually publish
+/// values to NetworkTables from the widget (e.g. text displays, sliders, and
+/// choosers).
+///
+/// Mixing this in augments the standard save codepath so the last value the
+/// user manually placed into the widget is persisted into the dashboard file
+/// under the `value` key, and restored when the layout is loaded. It is applied
+/// as a mixin (rather than a common superclass) because writable widgets extend
+/// both [SingleTopicNTWidgetModel] and [MultiTopicNTWidgetModel].
+///
+/// The `value` key is only written when a value has actually been published, so
+/// freshly created and never-written widgets serialize exactly as before.
+mixin NTWritableModel on NTWidgetModel {
+  Object? _lastWrittenValue;
+
+  /// The last value the user manually published from this widget, or `null` if
+  /// nothing has been written yet.
+  Object? get lastWrittenValue => _lastWrittenValue;
+
+  /// Records [value] as the most recently published value so it can be saved
+  /// with the dashboard layout. Should be called from a model's publish method
+  /// whenever a user-initiated write succeeds.
+  void setLastWrittenValue(Object? value) {
+    _lastWrittenValue = value;
+  }
+
+  /// Restores a previously persisted written value from [jsonData]. Should be
+  /// called from a model's `fromJson` constructor body.
+  void restoreWrittenValue(Map<String, dynamic> jsonData) {
+    if (jsonData.containsKey('value')) {
+      _lastWrittenValue = jsonData['value'];
+
+      // If a robot is already connected when the layout is loaded, push the
+      // restored value immediately. Otherwise it is republished on the next
+      // connection by the listener registered in [init].
+      if (ntConnection.isNT4Connected) {
+        publishLastWrittenValue();
+      }
+    }
+  }
+
+  /// Republishes [lastWrittenValue] to NetworkTables using the widget's topic
+  /// and data type. Implemented per widget since each publishes differently.
+  /// Called on every (re)connection and must be a no-op when no value has been
+  /// written yet.
+  void publishLastWrittenValue();
+
+  @override
+  @mustCallSuper
+  void init() {
+    super.init();
+
+    // Re-send the last written value whenever the robot (re)connects so that
+    // persisted values (e.g. setpoints) are restored on the robot. Robots start
+    // in a disabled state, so publishing values on connect is safe.
+    ntConnection.addConnectedListener(publishLastWrittenValue);
+  }
+
+  @override
+  @mustCallSuper
+  void dispose() {
+    ntConnection.removeConnectedListener(publishLastWrittenValue);
+    super.dispose();
+  }
+
+  @override
+  @mustCallSuper
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    if (_lastWrittenValue != null) 'value': _lastWrittenValue,
+  };
+}
+
 abstract class NTWidget extends StatelessWidget {
   const NTWidget({super.key});
 }

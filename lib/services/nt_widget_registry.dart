@@ -404,15 +404,19 @@ class NTWidgetRegistry {
       minHeight: _normalSize * 0.8,
     );
 
-    registerWithoutModel(
+    registerSingleTopic(
       name: ToggleButton.widgetType,
+      model: ToggleButtonModel.new,
       widget: ToggleButton.new,
+      fromJson: ToggleButtonModel.fromJson,
       minHeight: _normalSize * 0.8,
     );
 
-    registerWithoutModel(
+    registerSingleTopic(
       name: ToggleSwitch.widgetType,
+      model: ToggleSwitchModel.new,
       widget: ToggleSwitch.new,
+      fromJson: ToggleSwitchModel.fromJson,
     );
 
     registerWithoutModel(

@@ -11,7 +11,7 @@ import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_text_input.dart'
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_toggle_switch.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class NumberSliderModel extends SingleTopicNTWidgetModel {
+class NumberSliderModel extends SingleTopicNTWidgetModel with NTWritableModel {
   @override
   String type = NumberSlider.widgetType;
 
@@ -78,6 +78,8 @@ class NumberSliderModel extends SingleTopicNTWidgetModel {
         tryCast(jsonData['update_continuously']) ??
         tryCast(jsonData['publish_all']) ??
         false;
+
+    restoreWrittenValue(jsonData);
   }
 
   @override
@@ -179,9 +181,20 @@ class NumberSliderModel extends SingleTopicNTWidgetModel {
     }
 
     if (dataType == NT4Type.int()) {
-      ntConnection.updateDataFromTopic(ntTopic!, value.round());
+      int roundedValue = value.round();
+      ntConnection.updateDataFromTopic(ntTopic!, roundedValue);
+      setLastWrittenValue(roundedValue);
     } else {
       ntConnection.updateDataFromTopic(ntTopic!, value);
+      setLastWrittenValue(value);
+    }
+  }
+
+  @override
+  void publishLastWrittenValue() {
+    Object? value = lastWrittenValue;
+    if (value is num) {
+      publishValue(value.toDouble());
     }
   }
 }

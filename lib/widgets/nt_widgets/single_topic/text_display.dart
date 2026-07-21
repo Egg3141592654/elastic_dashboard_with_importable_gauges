@@ -9,7 +9,7 @@ import 'package:elastic_dashboard/services/settings.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_toggle_switch.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class TextDisplayModel extends SingleTopicNTWidgetModel {
+class TextDisplayModel extends SingleTopicNTWidgetModel with NTWritableModel {
   @override
   String type = TextDisplay.widgetType;
 
@@ -53,6 +53,8 @@ class TextDisplayModel extends SingleTopicNTWidgetModel {
   }) : super.fromJson(jsonData: jsonData) {
     _showSubmitButton =
         tryCast(jsonData['show_submit_button']) ?? _showSubmitButton;
+
+    restoreWrittenValue(jsonData);
   }
 
   @override
@@ -73,9 +75,6 @@ class TextDisplayModel extends SingleTopicNTWidgetModel {
   };
 
   void publishData(String value) {
-    bool publishTopic =
-        ntTopic == null || !ntConnection.isTopicPublished(ntTopic!);
-
     createTopicIfNull();
 
     if (ntTopic == null) {
@@ -85,15 +84,39 @@ class TextDisplayModel extends SingleTopicNTWidgetModel {
     NT4Type dataType = ntStructMeta?.type ?? ntTopic!.type;
     Object? formattedData = dataType.convertString(value);
 
-    if (publishTopic) {
-      ntConnection.publishTopic(ntTopic!);
-    }
-
     if (formattedData != null) {
-      ntConnection.updateDataFromTopic(ntTopic!, formattedData);
+      _publishValue(formattedData);
     }
 
     previousValue = value;
+  }
+
+  /// Publishes an already type-converted [data] value to the topic and records
+  /// it as the last written value.
+  void _publishValue(Object data) {
+    bool alreadyPublished =
+        ntTopic != null && ntConnection.isTopicPublished(ntTopic!);
+
+    createTopicIfNull();
+
+    if (ntTopic == null) {
+      return;
+    }
+
+    if (!alreadyPublished) {
+      ntConnection.publishTopic(ntTopic!);
+    }
+
+    ntConnection.updateDataFromTopic(ntTopic!, data);
+    setLastWrittenValue(data);
+  }
+
+  @override
+  void publishLastWrittenValue() {
+    Object? value = lastWrittenValue;
+    if (value != null) {
+      _publishValue(value);
+    }
   }
 }
 

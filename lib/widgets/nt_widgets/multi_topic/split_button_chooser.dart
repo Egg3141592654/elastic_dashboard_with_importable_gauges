@@ -7,7 +7,8 @@ import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/nt4_type.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class SplitButtonChooserModel extends MultiTopicNTWidgetModel {
+class SplitButtonChooserModel extends MultiTopicNTWidgetModel
+    with NTWritableModel {
   @override
   String type = SplitButtonChooser.widgetType;
 
@@ -48,8 +49,10 @@ class SplitButtonChooserModel extends MultiTopicNTWidgetModel {
   SplitButtonChooserModel.fromJson({
     required super.ntConnection,
     required super.preferences,
-    required super.jsonData,
-  }) : super.fromJson();
+    required Map<String, dynamic> jsonData,
+  }) : super.fromJson(jsonData: jsonData) {
+    restoreWrittenValue(jsonData);
+  }
 
   @override
   void initializeSubscriptions() {
@@ -193,6 +196,15 @@ class SplitButtonChooserModel extends MultiTopicNTWidgetModel {
       selected,
       initial ? 0 : null,
     );
+
+    setLastWrittenValue(selected);
+  }
+
+  @override
+  void publishLastWrittenValue() {
+    // No-op: the chooser re-asserts its selection on its own via
+    // onChooserStateUpdate when the robot (re)publishes the chooser, so
+    // republishing here would be redundant.
   }
 }
 

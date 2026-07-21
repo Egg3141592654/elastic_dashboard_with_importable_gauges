@@ -11,7 +11,8 @@ import 'package:elastic_dashboard/services/nt4_type.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_toggle_switch.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class ComboBoxChooserModel extends MultiTopicNTWidgetModel {
+class ComboBoxChooserModel extends MultiTopicNTWidgetModel
+    with NTWritableModel {
   @override
   String type = ComboBoxChooser.widgetType;
 
@@ -69,6 +70,8 @@ class ComboBoxChooserModel extends MultiTopicNTWidgetModel {
     required Map<String, dynamic> jsonData,
   }) : super.fromJson(jsonData: jsonData) {
     _sortOptions = tryCast(jsonData['sort_options']) ?? _sortOptions;
+
+    restoreWrittenValue(jsonData);
   }
 
   @override
@@ -234,6 +237,15 @@ class ComboBoxChooserModel extends MultiTopicNTWidgetModel {
       selected,
       initial ? 0 : null,
     );
+
+    setLastWrittenValue(selected);
+  }
+
+  @override
+  void publishLastWrittenValue() {
+    // No-op: the chooser re-asserts its selection on its own via
+    // onChooserStateUpdate when the robot (re)publishes the chooser, so
+    // republishing here would be redundant.
   }
 }
 

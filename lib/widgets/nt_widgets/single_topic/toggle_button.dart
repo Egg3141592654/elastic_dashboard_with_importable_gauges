@@ -69,7 +69,9 @@ class ToggleButton extends NTWidget {
     return ValueListenableBuilder(
       valueListenable: model.subscription!,
       builder: (context, data, child) {
-        bool value = tryCast(data) ?? false;
+        // Fall back to the last written value so a restored value is shown
+        // even before the robot connects and publishes to the topic.
+        bool value = tryCast(data) ?? tryCast(model.lastWrittenValue) ?? false;
 
         String buttonText = model.topic.substring(
           model.topic.lastIndexOf('/') + 1,

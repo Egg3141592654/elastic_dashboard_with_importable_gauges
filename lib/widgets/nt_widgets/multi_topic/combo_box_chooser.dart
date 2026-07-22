@@ -258,7 +258,22 @@ class ComboBoxChooser extends NTWidget {
   Widget build(BuildContext context) {
     ComboBoxChooserModel model = cast(context.watch<NTWidgetModel>());
 
-    String? preview = model.previousSelected ?? model.previousDefault;
+    // Fall back to the last written value so a restored selection is shown
+    // even before the robot connects and publishes the chooser.
+    String? preview =
+        model.previousSelected ??
+        model.previousDefault ??
+        tryCast<String>(model.lastWrittenValue);
+
+    // Always keep the shown selection in the options list, otherwise a restored
+    // value that isn't among the robot's published options renders blank.
+    List<String> options = [...?model.previousOptions];
+    if (preview != null && preview.isNotEmpty && !options.contains(preview)) {
+      options.add(preview);
+    }
+    if (options.isEmpty) {
+      options.add(preview ?? '');
+    }
 
     bool showWarning = model.previousActive != preview;
 
@@ -270,7 +285,7 @@ class ComboBoxChooser extends NTWidget {
             constraints: const BoxConstraints(minHeight: 36.0),
             child: _StringChooserDropdown(
               selected: preview,
-              options: model.previousOptions ?? [preview ?? ''],
+              options: options,
               textController: model._searchController,
               onValueChanged: (String? value) {
                 model.publishSelectedValue(value);

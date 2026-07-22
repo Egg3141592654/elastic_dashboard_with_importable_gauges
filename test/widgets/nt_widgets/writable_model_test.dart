@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:elastic_dashboard/services/nt4_client.dart';
@@ -11,6 +12,7 @@ import 'package:elastic_dashboard/services/nt_widget_registry.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/models/nt_widget_container_model.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/combo_box_chooser.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/split_button_chooser.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/number_slider.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/text_display.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/toggle_button.dart';
@@ -437,6 +439,169 @@ void main() {
       model.dispose();
 
       verify(ntConnection.removeConnectedListener(any)).called(1);
+    });
+  });
+
+  group('Restored value is shown in the UI while offline', () {
+    late MockNTConnection ntConnection;
+
+    setUp(() {
+      // No robot connected: subscriptions have no value, mirroring a layout
+      // reloaded before connecting to a robot.
+      ntConnection = createMockOfflineNT4();
+    });
+
+    testWidgets('text display shows the restored value', (tester) async {
+      FlutterError.onError = ignoreOverflowErrors;
+
+      final model = TextDisplayModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Display Value',
+          'data_type': NT4Type.double().serialize(),
+          'period': 0.100,
+          'value': 3.53,
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChangeNotifierProvider<NTWidgetModel>.value(
+              value: model,
+              child: const TextDisplay(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('3.53'), findsOneWidget);
+    });
+
+    testWidgets('number slider shows the restored value', (tester) async {
+      FlutterError.onError = ignoreOverflowErrors;
+
+      final model = NumberSliderModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Double Value',
+          'data_type': NT4Type.double().serialize(),
+          'period': 0.100,
+          'value': 0.3,
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChangeNotifierProvider<NTWidgetModel>.value(
+              value: model,
+              child: const NumberSlider(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('0.30'), findsOneWidget);
+    });
+
+    testWidgets('toggle switch shows the restored value', (tester) async {
+      FlutterError.onError = ignoreOverflowErrors;
+
+      final model = ToggleSwitchModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Boolean Value',
+          'data_type': 'boolean',
+          'period': 0.100,
+          'value': true,
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChangeNotifierProvider<NTWidgetModel>.value(
+              value: model,
+              child: const ToggleSwitch(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    });
+
+    testWidgets('combo box chooser shows the restored selection', (
+      tester,
+    ) async {
+      FlutterError.onError = ignoreOverflowErrors;
+
+      final model = ComboBoxChooserModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {'topic': 'Test/Chooser', 'period': 0.100, 'value': 'Teleop'},
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChangeNotifierProvider<NTWidgetModel>.value(
+              value: model,
+              child: const ComboBoxChooser(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Teleop'), findsWidgets);
+    });
+
+    testWidgets('combo box shows a restored selection missing from the '
+        'published options', (tester) async {
+      FlutterError.onError = ignoreOverflowErrors;
+
+      // Connected to a server whose chooser options do NOT contain the
+      // restored value (the real bug: dropdown rendered blank).
+      final connected = createMockOnlineNT4(
+        virtualTopics: [
+          NT4Topic(
+            name: 'Test/Chooser/options',
+            type: NT4Type.array(NT4Type.string()),
+            properties: {},
+          ),
+        ],
+        virtualValues: {
+          'Test/Chooser/options': ['Auto1', 'Auto2'],
+        },
+      );
+
+      final model = ComboBoxChooserModel.fromJson(
+        ntConnection: connected,
+        preferences: preferences,
+        jsonData: {'topic': 'Test/Chooser', 'period': 0.100, 'value': 'Teleop'},
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChangeNotifierProvider<NTWidgetModel>.value(
+              value: model,
+              child: const ComboBoxChooser(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Teleop'), findsWidgets);
     });
   });
 

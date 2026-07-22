@@ -134,7 +134,9 @@ class TextDisplay extends NTWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([model.subscription!, model.controller]),
       builder: (context, child) {
-        Object? data = model.subscription!.value;
+        // Fall back to the last written value so a restored value is shown
+        // even before the robot connects and publishes to the topic.
+        Object? data = model.subscription!.value ?? model.lastWrittenValue;
 
         if (data?.toString() != model.previousValue?.toString()) {
           // Needed to prevent errors

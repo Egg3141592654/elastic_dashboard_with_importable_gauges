@@ -217,7 +217,19 @@ class SplitButtonChooser extends NTWidget {
   Widget build(BuildContext context) {
     SplitButtonChooserModel model = cast(context.watch<NTWidgetModel>());
 
-    String? preview = model.previousSelected ?? model.previousDefault;
+    // Fall back to the last written value so a restored selection is shown
+    // even before the robot connects and publishes the chooser.
+    String? preview =
+        model.previousSelected ??
+        model.previousDefault ??
+        tryCast<String>(model.lastWrittenValue);
+
+    // Always keep the shown selection in the options list, otherwise a restored
+    // value that isn't among the robot's published options renders no button.
+    List<String> options = [...?model.previousOptions];
+    if (preview != null && preview.isNotEmpty && !options.contains(preview)) {
+      options.add(preview);
+    }
 
     bool showWarning = model.previousActive != preview;
 
@@ -230,23 +242,19 @@ class SplitButtonChooser extends NTWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             child: ToggleButtons(
               onPressed: (index) {
-                model.publishSelectedValue(model.previousOptions?[index]);
+                model.publishSelectedValue(options[index]);
               },
-              isSelected:
-                  model.previousOptions
-                      ?.map((String option) => option == preview)
-                      .toList() ??
-                  [],
-              children:
-                  model.previousOptions
-                      ?.map(
-                        (String option) => Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(option),
-                        ),
-                      )
-                      .toList() ??
-                  [],
+              isSelected: options
+                  .map((String option) => option == preview)
+                  .toList(),
+              children: options
+                  .map(
+                    (String option) => Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(option),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ),

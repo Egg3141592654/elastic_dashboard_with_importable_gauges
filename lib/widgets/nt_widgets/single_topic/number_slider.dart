@@ -215,8 +215,12 @@ class NumberSlider extends NTWidget {
         model.dragging,
       ]),
       builder: (context, child) {
+        // Fall back to the last written value so a restored value is shown
+        // even before the robot connects and publishes to the topic.
         double value =
-            tryCast<num>(model.subscription!.value)?.toDouble() ?? 0.0;
+            tryCast<num>(model.subscription!.value)?.toDouble() ??
+            tryCast<num>(model.lastWrittenValue)?.toDouble() ??
+            0.0;
 
         double clampedValue = value.clamp(model.minValue, model.maxValue);
 

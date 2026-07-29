@@ -114,9 +114,19 @@ class TextDisplayModel extends SingleTopicNTWidgetModel with NTWritableModel {
   @override
   void publishLastWrittenValue() {
     Object? value = lastWrittenValue;
-    if (value != null) {
-      _publishValue(value);
+    if (value == null) {
+      return;
     }
+
+    // On a fresh connection the server hasn't announced any topics yet, so
+    // the topic has to be created from the saved data type for the restored
+    // value to be pushed out.
+    createTopicIfNull();
+    if (ntTopic == null && dataType != null) {
+      ntTopic = ntConnection.publishNewTopic(topic, dataType!);
+    }
+
+    _publishValue(value);
   }
 }
 

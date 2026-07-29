@@ -179,7 +179,7 @@ MockNTConnection createMockOnlineNT4({
     (invocation) => publishedTopics.contains(invocation.positionalArguments[0]),
   );
 
-  when(mockNT4Connection.updateDataFromTopic(any, any)).thenAnswer((
+  when(mockNT4Connection.updateDataFromTopic(any, any, any)).thenAnswer((
     invocation,
   ) {
     NT4Topic topic = invocation.positionalArguments[0];
@@ -188,7 +188,7 @@ MockNTConnection createMockOnlineNT4({
     virtualValues![topic.name] = data;
   });
 
-  when(mockNT4Connection.updateDataFromTopicName(any, any)).thenAnswer((
+  when(mockNT4Connection.updateDataFromTopicName(any, any, any)).thenAnswer((
     invocation,
   ) {
     String topic = invocation.positionalArguments[0];
@@ -222,22 +222,22 @@ MockNTConnection createMockOnlineNT4({
       subscriptionNotifiers.remove(invocation.positionalArguments[0]);
     });
 
-    when(mockNT4Connection.updateDataFromTopic(topic, any)).thenAnswer((
+    when(mockNT4Connection.updateDataFromTopic(topic, any, any)).thenAnswer((
       invocation,
     ) {
       virtualValues![topic.name] = invocation.positionalArguments[1];
       topicSubscription.updateValue(invocation.positionalArguments[1], 0);
     });
 
-    when(mockNT4Connection.updateDataFromTopicName(topic.name, any)).thenAnswer(
-      (invocation) {
-        virtualValues![topic.name] = invocation.positionalArguments[1];
-        topicSubscription.updateValue(invocation.positionalArguments[1], 0);
-      },
-    );
+    when(
+      mockNT4Connection.updateDataFromTopicName(topic.name, any, any),
+    ).thenAnswer((invocation) {
+      virtualValues![topic.name] = invocation.positionalArguments[1];
+      topicSubscription.updateValue(invocation.positionalArguments[1], 0);
+    });
 
     when(
-      mockNT4Connection.updateDataFromSubscription(topicSubscription, any),
+      mockNT4Connection.updateDataFromSubscription(topicSubscription, any, any),
     ).thenAnswer((invocation) {
       virtualValues![topic.name] = invocation.positionalArguments[1];
       topicSubscription.updateValue(invocation.positionalArguments[1], 0);

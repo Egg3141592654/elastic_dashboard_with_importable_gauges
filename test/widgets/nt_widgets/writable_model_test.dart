@@ -216,6 +216,68 @@ void main() {
 
       expect(model.lastWrittenValue, 'Teleop');
     });
+
+    test('publishes the restored selection to the server when connected', () {
+      final virtualValues = <String, dynamic>{
+        'Test/Chooser/options': ['Auto', 'Teleop'],
+      };
+      final connection = createMockOnlineNT4(
+        virtualTopics: [
+          NT4Topic(
+            name: 'Test/Chooser/options',
+            type: NT4Type.array(NT4Type.string()),
+            properties: {},
+          ),
+        ],
+        virtualValues: virtualValues,
+      );
+
+      ComboBoxChooserModel.fromJson(
+        ntConnection: connection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Chooser',
+          'period': 0.100,
+          'value': 'Teleop',
+        },
+      );
+
+      expect(virtualValues['Test/Chooser/selected'], 'Teleop');
+    });
+
+    test('does not override a selection the server already has', () {
+      final virtualValues = <String, dynamic>{
+        'Test/Chooser/options': ['Auto', 'Teleop'],
+        'Test/Chooser/selected': 'Auto',
+      };
+      final connection = createMockOnlineNT4(
+        virtualTopics: [
+          NT4Topic(
+            name: 'Test/Chooser/options',
+            type: NT4Type.array(NT4Type.string()),
+            properties: {},
+          ),
+          NT4Topic(
+            name: 'Test/Chooser/selected',
+            type: NT4Type.string(),
+            properties: {},
+          ),
+        ],
+        virtualValues: virtualValues,
+      );
+
+      ComboBoxChooserModel.fromJson(
+        ntConnection: connection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Chooser',
+          'period': 0.100,
+          'value': 'Teleop',
+        },
+      );
+
+      expect(virtualValues['Test/Chooser/selected'], 'Auto');
+    });
   });
 
   group('Split Button Chooser', () {
@@ -262,6 +324,30 @@ void main() {
       );
 
       expect(model.lastWrittenValue, 'Auto');
+    });
+
+    test('publishes the restored selection to the server when connected', () {
+      final virtualValues = <String, dynamic>{
+        'Test/Chooser/options': ['Auto', 'Teleop'],
+      };
+      final connection = createMockOnlineNT4(
+        virtualTopics: [
+          NT4Topic(
+            name: 'Test/Chooser/options',
+            type: NT4Type.array(NT4Type.string()),
+            properties: {},
+          ),
+        ],
+        virtualValues: virtualValues,
+      );
+
+      SplitButtonChooserModel.fromJson(
+        ntConnection: connection,
+        preferences: preferences,
+        jsonData: {'topic': 'Test/Chooser', 'period': 0.100, 'value': 'Auto'},
+      );
+
+      expect(virtualValues['Test/Chooser/selected'], 'Auto');
     });
   });
 
@@ -442,6 +528,110 @@ void main() {
     });
   });
 
+  group('Restored value publishes before the topic is announced', () {
+    // On a real (re)connection the connected listeners fire before the server
+    // has announced any topics, so the widgets have to create the topic from
+    // the saved data type instead of looking it up.
+    late MockNTConnection ntConnection;
+    late Map<String, dynamic> virtualValues;
+
+    setUp(() {
+      virtualValues = {};
+      ntConnection = createMockOnlineNT4(
+        virtualTopics: [],
+        virtualValues: virtualValues,
+      );
+    });
+
+    test('text display creates the topic and pushes the restored value', () {
+      TextDisplayModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Display Value',
+          'data_type': NT4Type.double().serialize(),
+          'period': 0.100,
+          'value': 3.53,
+        },
+      );
+
+      verify(
+        ntConnection.publishNewTopic(
+          'Test/Display Value',
+          any,
+          properties: anyNamed('properties'),
+        ),
+      ).called(1);
+      expect(virtualValues['Test/Display Value'], 3.53);
+    });
+
+    test('number slider creates the topic and pushes the restored value', () {
+      NumberSliderModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Double Value',
+          'data_type': NT4Type.double().serialize(),
+          'period': 0.100,
+          'value': 2.5,
+        },
+      );
+
+      expect(virtualValues['Test/Double Value'], 2.5);
+    });
+
+    test('toggle switch creates the topic and pushes the restored value', () {
+      ToggleSwitchModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Boolean Value',
+          'data_type': 'boolean',
+          'period': 0.100,
+          'value': true,
+        },
+      );
+
+      expect(virtualValues['Test/Boolean Value'], true);
+    });
+
+    test('toggle button creates the topic and pushes the restored value', () {
+      ToggleButtonModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Boolean Value',
+          'data_type': 'boolean',
+          'period': 0.100,
+          'value': true,
+        },
+      );
+
+      expect(virtualValues['Test/Boolean Value'], true);
+    });
+
+    test('does not create a topic when the data type is unknown', () {
+      TextDisplayModel.fromJson(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        jsonData: {
+          'topic': 'Test/Display Value',
+          'period': 0.100,
+          'value': 3.53,
+        },
+      );
+
+      verifyNever(
+        ntConnection.publishNewTopic(
+          any,
+          any,
+          properties: anyNamed('properties'),
+        ),
+      );
+      expect(virtualValues.containsKey('Test/Display Value'), isFalse);
+    });
+  });
+
   group('Restored value is shown in the UI while offline', () {
     late MockNTConnection ntConnection;
 
@@ -477,6 +667,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // The text field's controller itself is repopulated, not just rendered,
+      // so the user can edit and resubmit the restored entry.
+      expect(model.controller.text, '3.53');
       expect(find.text('3.53'), findsOneWidget);
     });
 

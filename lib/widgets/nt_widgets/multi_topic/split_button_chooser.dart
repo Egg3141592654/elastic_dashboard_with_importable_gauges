@@ -202,9 +202,21 @@ class SplitButtonChooserModel extends MultiTopicNTWidgetModel
 
   @override
   void publishLastWrittenValue() {
-    // No-op: the chooser re-asserts its selection on its own via
-    // onChooserStateUpdate when the robot (re)publishes the chooser, so
-    // republishing here would be redundant.
+    String? restored = tryCast(lastWrittenValue);
+    if (restored == null || restored.isEmpty) {
+      return;
+    }
+
+    // Don't override a selection the server already has; the restored value is
+    // only meant to fill in when nothing is selected yet.
+    String? currentSelected = tryCast(selectedSubscription.value);
+    if (currentSelected != null && currentSelected.isNotEmpty) {
+      return;
+    }
+
+    // Published with an initial timestamp so anything the robot publishes
+    // takes priority over the restored selection.
+    publishSelectedValue(restored, true);
   }
 }
 

@@ -632,6 +632,57 @@ void main() {
     });
   });
 
+  group('Custom text entry (topic not on network tables)', () {
+    test('publishData creates the topic and publishes when connected', () {
+      final virtualValues = <String, dynamic>{};
+      final MockNTConnection ntConnection = createMockOnlineNT4(
+        virtualTopics: [],
+        virtualValues: virtualValues,
+      );
+
+      final model = TextDisplayModel(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        topic: '/Custom/Value',
+        dataType: NT4Type.double(),
+        period: 0.100,
+      );
+
+      model.publishData('3.53');
+
+      verify(
+        ntConnection.publishNewTopic(
+          '/Custom/Value',
+          any,
+          properties: anyNamed('properties'),
+        ),
+      ).called(1);
+      expect(virtualValues['/Custom/Value'], 3.53);
+      expect(model.lastWrittenValue, 3.53);
+
+      final json = model.toJson();
+      expect(json['value'], 3.53);
+      expect(json['data_type'], NT4Type.double().serialize());
+    });
+
+    test('publishData while offline records the value for saving', () {
+      final ntConnection = createMockOfflineNT4();
+
+      final model = TextDisplayModel(
+        ntConnection: ntConnection,
+        preferences: preferences,
+        topic: '/Custom/Value',
+        dataType: NT4Type.string(),
+        period: 0.100,
+      );
+
+      model.publishData('hello');
+
+      expect(model.lastWrittenValue, 'hello');
+      expect(model.toJson()['value'], 'hello');
+    });
+  });
+
   group('Restored value is shown in the UI while offline', () {
     late MockNTConnection ntConnection;
 

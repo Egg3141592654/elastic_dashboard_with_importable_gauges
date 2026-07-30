@@ -77,15 +77,24 @@ class TextDisplayModel extends SingleTopicNTWidgetModel with NTWritableModel {
   void publishData(String value) {
     createTopicIfNull();
 
-    if (ntTopic == null) {
-      return;
-    }
-
-    NT4Type dataType = ntStructMeta?.type ?? ntTopic!.type;
-    Object? formattedData = dataType.convertString(value);
+    NT4Type? type = ntStructMeta?.type ?? ntTopic?.type ?? dataType;
+    Object? formattedData = type?.convertString(value);
 
     if (formattedData != null) {
-      _publishValue(formattedData);
+      // The topic may not exist on the server yet (e.g. a widget created from
+      // the Add Widget dialog's Custom tab); create it from the widget's data
+      // type so user-entered values still publish.
+      if (ntTopic == null && dataType != null && ntConnection.isNT4Connected) {
+        ntTopic = ntConnection.publishNewTopic(topic, dataType!);
+      }
+
+      if (ntTopic != null) {
+        _publishValue(formattedData);
+      } else {
+        // Offline: record the value so it is saved with the layout and pushed
+        // out on the next connection.
+        setLastWrittenValue(formattedData);
+      }
     }
 
     previousValue = value;

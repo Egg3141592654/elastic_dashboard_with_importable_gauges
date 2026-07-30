@@ -9,6 +9,7 @@ import 'package:elegant_notification/elegant_notification.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart';
 import 'package:mockito/mockito.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:titlebar_buttons/titlebar_buttons.dart';
 
@@ -26,6 +27,7 @@ import 'package:elastic_dashboard/widgets/custom_appbar.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_dropdown_chooser.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_text_input.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/layout_drag_tile.dart';
+import 'package:elastic_dashboard/widgets/dialog_widgets/nt_widget_drag_tile.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_list_layout.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
 import 'package:elastic_dashboard/widgets/draggable_dialog.dart';
@@ -33,7 +35,9 @@ import 'package:elastic_dashboard/widgets/editable_tab_bar.dart';
 import 'package:elastic_dashboard/widgets/network_tree/networktables_tree.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/combo_box_chooser.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/gyro.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/boolean_box.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/text_display.dart';
 import 'package:elastic_dashboard/widgets/settings_dialog.dart';
 import 'package:elastic_dashboard/widgets/tab_grid.dart';
 import '../services/elastic_layout_downloader_test.dart';
@@ -422,6 +426,96 @@ void main() {
       await widgetTester.pumpAndSettle();
 
       expect(listLayoutContainer, findsOneWidget);
+    });
+
+    testWidgets('Add widget dialog (custom text entry)', (widgetTester) async {
+      // Fail fast instead of hitting pumpAndSettle's 10 minute default
+      // timeout if a frame never settles.
+      Future<void> settle() => widgetTester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+
+      await pumpDashboardPage(
+        widgetTester,
+        preferences,
+        ntConnection: createMockOnlineNT4(),
+      );
+
+      final addWidget = find.widgetWithText(MenuItemButton, 'Add Widget');
+
+      expect(addWidget, findsOneWidget);
+
+      MenuItemButton addWidgetButton =
+          addWidget.evaluate().first.widget as MenuItemButton;
+
+      addWidgetButton.onPressed?.call();
+
+      await settle();
+
+      final customTab = find.text('Custom');
+      expect(customTab, findsOneWidget);
+
+      await widgetTester.tap(customTab);
+      await settle();
+
+      final textEntryTile = find.widgetWithText(NTWidgetDragTile, 'Text Entry');
+      expect(textEntryTile, findsOneWidget);
+
+      // The preloaded layout may already contain text displays, so all
+      // assertions are relative to the initial count.
+      final int initialTextDisplays = find
+          .byType(TextDisplay)
+          .evaluate()
+          .length;
+
+      // Dragging without a topic name entered should not create a widget
+      await widgetTester.drag(
+        textEntryTile,
+        const Offset(300, -300),
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle();
+
+      expect(find.byType(TextDisplay), findsNWidgets(initialTextDisplays));
+      expect(find.widgetWithText(WidgetContainer, 'My Number'), findsNothing);
+
+      final topicField = find.widgetWithText(DialogTextInput, 'Topic Name');
+      expect(topicField, findsOneWidget);
+
+      await widgetTester.enterText(topicField, 'My Number');
+      await widgetTester.testTextInput.receiveAction(TextInputAction.done);
+      await settle();
+
+      await widgetTester.drag(
+        textEntryTile,
+        const Offset(300, -300),
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle();
+
+      final createdContainer = find.widgetWithText(
+        WidgetContainer,
+        'My Number',
+      );
+      expect(createdContainer, findsOneWidget);
+      expect(
+        find.byType(TextDisplay),
+        findsNWidgets(initialTextDisplays + 1),
+      );
+
+      // The created widget's topic is placed under the SmartDashboard table
+      final model = Provider.of<NTWidgetModel>(
+        widgetTester.element(
+          find.descendant(
+            of: createdContainer,
+            matching: find.byType(TextDisplay),
+          ),
+        ),
+        listen: false,
+      );
+      expect(model.topic, '/SmartDashboard/My Number');
     });
 
     testWidgets('Add widget dialog (list layout sub-table)', (
